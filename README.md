@@ -49,6 +49,12 @@ ACK polling retries **answer reads only** for Linux `EREMOTEIO`, `ENXIO`, `ETIME
 
 `Instant` deadlines bound waits and new submissions controlled by Rust. They cannot interrupt an executing Linux ioctl; the adapter timeout controls that call. Required safety waits and explicit cleanup can run beyond the deadline. The library allows 20 ms reader power-on, another 5 ms tag warmup, 200 µs between a completed RF answer and a new request, and a 20 ms RF-off interval between sessions. Ambiguous ordinary and slot submissions retain conservative 4 ms and 32 ms RF guards. Programming holds RF for **2 ms transmission budget plus at least 7 ms programming after the write ioctl returns**, even if the call failed or the deadline expired. The SRI specs list maximum programming times 3/5/7 ms for OTP/EEPROM/counters. `with_programming_time(device, duration)` allows a longer confirmed model-specific bound, never a shorter one. An alternate bound does not establish support for a different protocol/model. Budget derivations and evidence are in [PROVENANCE.md](PROVENANCE.md).
 
+`write_blocks_with_admission` offers a one-shot caller gate after the target UID
+has been selected and verified, before the first memory write. Return `None` to
+refuse the write (`WriteNotAdmitted`), or `Some(deadline)` to give the entire
+admitted operation a fresh execution budget. Cleanup runs in both cases. The
+library does not interpret caller cancellation or interrupt an admitted write.
+
 Build and run the example on Linux (native ARM64 is supported):
 
 ```sh

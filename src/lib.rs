@@ -88,6 +88,7 @@ pub enum Error {
     Crc,
     NoResponse,
     TagNotFound(Uid),
+    WriteNotAdmitted,
     RegisterMismatch {
         expected: u8,
         actual: u8,
@@ -126,6 +127,7 @@ impl fmt::Display for Error {
             Self::Crc => f.write_str("RF CRC error"),
             Self::NoResponse => f.write_str("tag did not respond"),
             Self::TagNotFound(uid) => write!(f, "target tag {uid} not found"),
+            Self::WriteNotAdmitted => f.write_str("write not admitted after selection"),
             Self::RegisterMismatch { expected, actual } => write!(
                 f,
                 "parameter readback {actual:#04x}, expected {expected:#04x}"
@@ -352,6 +354,19 @@ where
         writes: &[(u8, Block)],
         deadline: Instant,
     ) -> Result<WriteProgress, WriteError> {
+        self.write_blocks_with_admission(uid, writes, deadline, || Some(deadline))
+    }
+
+    /// Select and verify the UID before asking the caller to admit memory writes.
+    /// The one-shot gate returns a fresh deadline for the complete write, or None
+    /// to refuse it without any memory write. RF cleanup runs on either path.
+    pub fn write_blocks_with_admission(
+        &mut self,
+        uid: Uid,
+        writes: &[(u8, Block)],
+        selection_deadline: Instant,
+        admit: impl FnOnce() -> Option<Instant>,
+    ) -> Result<WriteProgress, WriteError> {
         let mut progress = WriteProgress::default();
         if writes.is_empty() {
             return Err(WriteError {
@@ -359,8 +374,9 @@ where
                 error: Error::InvalidArgument("empty write list"),
             });
         }
-        let result = self.session(deadline, |reader| {
-            reader.select_uid(uid, deadline)?;
+        let result = self.session(selection_deadline, |reader| {
+            reader.select_uid(uid, selection_deadline)?;
+            let deadline = admit().ok_or(Error::WriteNotAdmitted)?;
             for &(address, data) in writes {
                 reader.before_request(deadline)?;
                 // Calculate before submission, then start the full guard after the

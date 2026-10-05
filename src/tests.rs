@@ -509,6 +509,58 @@ fn sequential_writes_return_observed_data_after_full_programming_windows() {
 }
 
 #[test]
+fn admission_runs_after_uid_verification_and_can_refuse_all_memory_writes() {
+    let mut script = target(UID);
+    script.extend(off());
+    let (mut r, bus) = reader(script);
+    let failure = r
+        .write_blocks_with_admission(UID, &[(7, [1; 4])], deadline(&r), || {
+            let seen = &bus.0.borrow().seen;
+            assert!(matches!(seen.last().unwrap().1, Access::Read(1, 9)));
+            None
+        })
+        .unwrap_err();
+    assert!(matches!(failure.error, Error::WriteNotAdmitted));
+    assert!(failure.progress.written.is_empty());
+    assert!(failure.progress.possibly_changed.is_none());
+    assert_eq!(r.state(), State::Ready);
+    bus.done();
+
+    // A UID mismatch must never reach the admission callback.
+    let mut script = target(Uid([0; 8]));
+    script.extend(finish());
+    script.extend(off());
+    let (mut r, bus) = reader(script);
+    assert!(r
+        .write_blocks_with_admission(UID, &[(7, [1; 4])], deadline(&r), || {
+            panic!("mismatched UID must not be admitted")
+        })
+        .is_err());
+    bus.done();
+}
+
+#[test]
+fn admitted_write_uses_its_fresh_deadline_after_selection_budget_expires() {
+    let mut script = target(UID);
+    script.push(frame(&[6, 9, 7, 1, 2, 3, 4]).delay(Duration::from_secs(2)));
+    script.extend(exchange(&[8, 7], &[1, 2, 3, 4]));
+    script.extend(finish());
+    script.extend(off());
+    let (mut r, bus) = reader(script);
+    let selection_deadline = deadline(&r);
+    let write_deadline = selection_deadline + Duration::from_secs(5);
+    let p = r
+        .write_blocks_with_admission(UID, &[(7, [1, 2, 3, 4])], selection_deadline, || {
+            Some(write_deadline)
+        })
+        .unwrap();
+    assert_eq!(p.readback, vec![(7, [1, 2, 3, 4])]);
+    assert!(r.clock.now() > selection_deadline);
+    assert_eq!(r.state(), State::Ready);
+    bus.done();
+}
+
+#[test]
 fn ambiguous_second_write_is_not_replayed_and_reports_partial_progress() {
     let mut script = target(UID);
     script.push(frame(&[6, 9, 7, 1, 2, 3, 4]));
