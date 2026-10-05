@@ -1,0 +1,19 @@
+[package]
+name = "cr14"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+description = "Synchronous Linux I2C access to the CR14 and ST SRI tags"
+license = "MIT"
+repository = "https://github.com/guilhem/cr14"
+readme = "README.md"
+keywords = ["rfid", "i2c", "cr14", "linux"]
+categories = ["hardware-support"]
+include = ["src/**", "examples/**", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "PROVENANCE.md"]
+
+[dependencies]
+i2cdev = "=0.6.2"
+libc = "0.2"
+
+[lints.rust]
+unsafe_code = "forbid"
