@@ -705,7 +705,9 @@ fn is_nack(error: &LinuxI2CError) -> bool {
 }
 
 fn is_busy(error: &LinuxI2CError) -> bool {
-    is_nack(error) || errno(error) == Some(libc::ETIMEDOUT)
+    // bcm2835 can report EIO on an answer read while the RF engine is busy.
+    // Only poll_read uses this classification; writes and probes never retry EIO.
+    is_nack(error) || matches!(errno(error), Some(libc::ETIMEDOUT | libc::EIO))
 }
 
 #[cfg(test)]

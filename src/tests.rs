@@ -386,7 +386,7 @@ fn invalid_slot_table_and_select_echo_are_rejected() {
 
 #[test]
 fn busy_reads_retry_only_reads_then_succeed() {
-    for code in [libc::EREMOTEIO, libc::ETIMEDOUT, libc::ENXIO] {
+    for code in [libc::EREMOTEIO, libc::ETIMEDOUT, libc::ENXIO, libc::EIO] {
         let mut script = on();
         script.extend([
             frame(&[2, 6, 0]),
@@ -402,20 +402,22 @@ fn busy_reads_retry_only_reads_then_succeed() {
 
 #[test]
 fn ack_expiration_preserves_last_linux_errno_even_if_ioctl_crosses_deadline() {
-    let mut script = on();
-    script.extend([
-        frame(&[2, 6, 0]),
-        read(1, 2, &[]).fails(libc::EREMOTEIO),
-        read(1, 2, &[])
-            .fails(libc::ETIMEDOUT)
-            .delay(Duration::from_secs(2)),
-    ]);
-    script.extend(off());
-    let (mut r, bus) = reader(script);
-    let error = r.inventory(deadline(&r)).unwrap_err();
-    assert!(has_errno(&error, libc::ETIMEDOUT));
-    assert!(matches!(error, Error::Deadline { .. }));
-    bus.done();
+    for last_errno in [libc::ETIMEDOUT, libc::EIO] {
+        let mut script = on();
+        script.extend([
+            frame(&[2, 6, 0]),
+            read(1, 2, &[]).fails(libc::EREMOTEIO),
+            read(1, 2, &[])
+                .fails(last_errno)
+                .delay(Duration::from_secs(2)),
+        ]);
+        script.extend(off());
+        let (mut r, bus) = reader(script);
+        let error = r.inventory(deadline(&r)).unwrap_err();
+        assert!(has_errno(&error, last_errno));
+        assert!(matches!(error, Error::Deadline { .. }));
+        bus.done();
+    }
 }
 
 #[test]
@@ -427,7 +429,7 @@ fn nonbusy_read_errors_and_partial_transfers_do_not_retry() {
         if partial {
             failed.messages = 1;
         } else {
-            failed.error = Some(libc::EIO);
+            failed.error = Some(libc::EBADF);
         }
         script.push(failed);
         script.extend(off());
@@ -442,7 +444,7 @@ fn nonbusy_read_errors_and_partial_transfers_do_not_retry() {
                 }
             ));
         } else {
-            assert!(has_errno(&error, libc::EIO));
+            assert!(has_errno(&error, libc::EBADF));
         }
         bus.done();
     }
