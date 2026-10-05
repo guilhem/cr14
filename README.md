@@ -2,11 +2,11 @@
 
 Synchronous Linux I2C access to a CR14 reader and ST SRI512/SRI4K tags. This independent MIT implementation uses `i2cdev = 0.6.2` and takes an already opened device. It provides discovery with 16-slot anticollision, UID-verified selection, four-byte block reads, and sequential writes with readback. It does not require `/dev/rfid0`.
 
-Import by an immutable Git revision (the consumer maintainer fills the delivered commit):
+Import by the tested immutable Git revision:
 
 ```toml
 [dependencies]
-cr14 = { git = "https://github.com/guilhem/cr14", rev = "DELIVERED_COMMIT_SHA" }
+cr14 = { git = "https://github.com/guilhem/cr14", rev = "f134e8980620a9e4aff4c00ae1090fbed3d18063" }
 i2cdev = "=0.6.2"
 ```
 
@@ -74,3 +74,10 @@ Qualification checklist (keep simulated and physical results separate):
 - Only after selecting an expendable unlocked EEPROM block: backup, opt-in write/readback/restore, then removal/power-cycle verification. Qualify late/failed ioctls, cleanup failure and adapter recovery with fault injection. No physical write test is included in the simulated evidence.
 
 This repository includes no NabOS integration. See [PROVENANCE.md](PROVENANCE.md) for independent implementation provenance and exact specifications; see [LICENSE](LICENSE) for the MIT terms.
+
+Recorded software and hardware observations are in [VALIDATION.md](VALIDATION.md).
+The small consumer in `integration/dual-reader` imports this checkout and a fixed
+Git revision of `st25r391x`. Run `cargo run --locked --manifest-path
+integration/dual-reader/Cargo.toml`; it opens no bus. The first delivery uses
+`codex/i2c-userspace`, whose root commit has no parent. Future Rust pull requests
+use this new history as their base; the older GPL branch remains separate.

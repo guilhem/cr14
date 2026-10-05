@@ -1,0 +1,11 @@
+[package]
+name = "nab-hardware-driver-smoke"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+cr14 = { path = "../.." }
+st25r391x = { git = "https://github.com/guilhem/st25r391x", rev = "a6086572f247975a9f2c98ba59c305febe8336a4" }
+i2cdev = "=0.6.2"

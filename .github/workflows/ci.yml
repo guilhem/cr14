@@ -27,4 +27,11 @@ jobs:
           targets: ${{ matrix.target }}
       - if: matrix.target == 'arm-unknown-linux-gnueabihf'
         run: echo 'RUSTFLAGS=-C target-cpu=arm1176jzf-s' >> "$GITHUB_ENV"
-      - run: cargo check --locked --lib --examples --target ${{ matrix.target }}
+      - run: cargo check --locked --all-targets --target ${{ matrix.target }}
+  consumer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt --manifest-path integration/dual-reader/Cargo.toml --check
+      - run: cargo run --locked --manifest-path integration/dual-reader/Cargo.toml

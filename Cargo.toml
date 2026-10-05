@@ -9,7 +9,7 @@ repository = "https://github.com/guilhem/cr14"
 readme = "README.md"
 keywords = ["rfid", "i2c", "cr14", "linux"]
 categories = ["hardware-support"]
-include = ["src/**", "examples/**", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "PROVENANCE.md"]
+include = ["src/**", "examples/**", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "PROVENANCE.md", "VALIDATION.md"]
 
 [dependencies]
 i2cdev = "=0.6.2"
